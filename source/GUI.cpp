@@ -109,10 +109,16 @@ namespace alfrac
 
         window.create(sf::VideoMode(window_width, window_height), "AlFractal", sf::Style::Default, context); // Создание окна.
         window.setFramerateLimit(FPS); // Ограничение на частоту обновления экрана.
+        sf::Vector2f window_size = static_cast<sf::Vector2f>(window.getSize());
 
         view.setCenter(0.0f, 0.0f);
-        view.setSize(static_cast<sf::Vector2f>(window.getSize()));
+        view.setSize(window_size);
         view.setViewport(sf::FloatRect(0.0f, 0.0f, 1.0f, 1.0f));
+
+        ui_view.setCenter(window_size / 2.0f);
+        ui_view.setSize(window_size);
+        ui_view.setViewport(sf::FloatRect(0.0f, 0.0f, 1.0f, 1.0f));
+
         window.setView(view);
     }
     GUI::~GUI()
@@ -124,11 +130,43 @@ namespace alfrac
     void GUI::loop()
     {
         // Масштаб фрактала.
-        fractal_scale_power = -4;
+        settings.fractal_scale_power = -10;
         rescale_fractal();
 
         // Нахождение первично отображаемых тайлов.
         fetch_tiles(getViewBounds(view));
+
+        // Шрифт.
+        sf::Font font;
+        if (!font.loadFromFile("SourceCodePro-Light.otf"))
+        {
+            std::cerr << "Error!" << std::endl;
+            throw;
+        }
+
+        // Текст для масштаба.
+        sf::Text scale_text;
+        scale_text.setFont(font);
+        scale_text.setCharacterSize(16);
+        scale_text.setFillColor(sf::Color::White);
+        scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
+                             "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
+
+        // Текст для числа итераций.
+        sf::Text iterations_text;
+        iterations_text.setFont(font);
+        iterations_text.setCharacterSize(16);
+        iterations_text.setFillColor(sf::Color::White);
+        iterations_text.setPosition(0.0f, 16.0f);
+        iterations_text.setString(std::to_string(settings.iterations_limit) + " iterations");
+
+        // Текст для числа бит.
+        sf::Text bits_text;
+        bits_text.setFont(font);
+        bits_text.setCharacterSize(16);
+        bits_text.setFillColor(sf::Color::White);
+        bits_text.setPosition(0.0f, 32.0f);
+        bits_text.setString(std::to_string(settings.precision) + " bits");
 
         sf::Vector2f mouse_position;
         sf::Event window_event;
@@ -146,8 +184,14 @@ namespace alfrac
                     }
                     case sf::Event::Resized:
                     {
-                        view.setSize(static_cast<sf::Vector2f>(window.getSize()) * static_cast<float>(pow(scale_base, scale_power)));
+                        sf::Vector2f window_size = static_cast<sf::Vector2f>(window.getSize());
+                        view.setSize(window_size * static_cast<float>(pow(settings.scale_base, settings.scale_power)));
                         view.setViewport(sf::FloatRect(0.0f, 0.0f, 1.0f, 1.0f));
+
+                        ui_view.setSize(window_size);
+                        ui_view.setViewport(sf::FloatRect(0.0f, 0.0f, 1.0f, 1.0f));
+                        ui_view.setCenter(window_size / 2.0f);
+
                         window.setView(view);
 
                         fetch_tiles(getViewBounds(view));
@@ -181,13 +225,19 @@ namespace alfrac
                     }
                     case sf::Event::MouseWheelMoved:
                     {
-                        if (window_event.mouseWheel.delta > 0) { --scale_power; }
-                        else { ++scale_power; }
-                        view.setSize(static_cast<sf::Vector2f>(window.getSize()) * static_cast<float>(pow(scale_base, scale_power)));
+                        if (window_event.mouseWheel.delta > 0)
+                        { --settings.scale_power; }
+                        else
+                        { ++settings.scale_power; }
+
+                        view.setSize(static_cast<sf::Vector2f>(window.getSize()) * static_cast<float>(pow(settings.scale_base, settings.scale_power)));
                         window.setView(view);
                         mouse_position = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
                         fetch_tiles(getViewBounds(view));
+
+                        scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
+                                             "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
                         break;
                     }
                     case sf::Event::KeyPressed:
@@ -197,26 +247,46 @@ namespace alfrac
                             case sf::Keyboard::R:
                             {
                                 rescale_fractal();
+                                scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
+                                                     "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
                                 break;
                             }
-                            case sf::Keyboard::I:
+                            case sf::Keyboard::U:
                             {
-                                std::cout << "Лимит итераций на точку: ";
-                                std::cin  >> iterations_limit;
+                                settings.draw_ui = !settings.draw_ui;
                                 break;
                             }
-                            case sf::Keyboard::A:
+                            case sf::Keyboard::Dash:
                             {
-                                std::cout << "Лимит по абсолютной величине: ";
-                                std::cin  >> max_absolute;
+                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::I))
+                                {
+                                    settings.iterations_limit >>= 1;
+                                    iterations_text.setString(std::to_string(settings.iterations_limit) + " iterations");
+                                }
+                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::B))
+                                {
+                                    settings.precision >>= 1;
+                                    bits_text.setString(std::to_string(settings.precision) + " bits");
+                                }
+
                                 break;
                             }
-                            case sf::Keyboard::P:
+                            case sf::Keyboard::Equal:
                             {
-                                std::cout << "Точность длинной арифметики (бит): ";
-                                std::cin  >> precision;
+                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::I))
+                                {
+                                    settings.iterations_limit <<= 1;
+                                    iterations_text.setString(std::to_string(settings.iterations_limit) + " iterations");
+                                }
+                                if (sf::Keyboard::isKeyPressed(sf::Keyboard::B))
+                                {
+                                    settings.precision <<= 1;
+                                    bits_text.setString(std::to_string(settings.precision) + " bits");
+                                }
+
                                 break;
                             }
+
                             default: { break; }
                         }
                     }
@@ -235,11 +305,25 @@ namespace alfrac
             }
 
             window.clear(sf::Color::Black);
+
+            // Рисование тайлов.
+            window.setView(view);
             for (size_t i = 0; i < onscreen_tiles.size(); ++i)
             {
                 onscreen_tiles[i]->check();
                 window.draw(*onscreen_tiles[i]);
             }
+
+            // Рисование элементов интерфейса.
+            if (settings.draw_ui)
+            {
+                window.setView(ui_view);
+                window.draw(scale_text);
+                window.draw(iterations_text);
+                window.draw(bits_text);
+            }
+
+            window.setView(view); // Требуется для корректной обработки движения камеры мышкой.
             window.display();
         }
     }
@@ -254,7 +338,12 @@ namespace alfrac
         int X2 = static_cast<int>(ceil(ceil(rectangle.left + rectangle.width) / static_cast<float>(tile_width)));
         int Y2 = static_cast<int>(ceil(ceil(rectangle.top + rectangle.height) / static_cast<float>(tile_height)));
 
+        size_t tiles_number = static_cast<size_t>((X2 - X1 + 1) * (Y2 - Y1 + 1));
+        if (tiles_number > settings.max_tiles_number)
+        { return; }
+
         onscreen_tiles.clear();
+        onscreen_tiles.reserve(tiles_number);
         for (int y = Y1; y <= Y2; ++y)
         {
             for (int x = X1; x <= X2; ++x)
@@ -265,25 +354,32 @@ namespace alfrac
                 // Проверка, существует ли указанный тайл.
                 if (iterator == tiles.end())
                 {
-                    // Если тайл не существует, создаётся новый и добавляется в таблицу тайлов и в массив отображаемых тайлов.
-                    Fractal::Request request;
-                    request.rectangle.bottom_left.x = static_cast<mpf_class>(x       * static_cast<int>(tile_width))  * fractal_scale_factor + fractal_scale_origin.x;
-                    request.rectangle.bottom_left.y = static_cast<mpf_class>(-y      * static_cast<int>(tile_height)) * fractal_scale_factor + fractal_scale_origin.y;
-                    request.rectangle.top_right.x  = static_cast<mpf_class>((x + 1)  * static_cast<int>(tile_width))  * fractal_scale_factor + fractal_scale_origin.x;
-                    request.rectangle.top_right.y  = static_cast<mpf_class>((-y + 1) * static_cast<int>(tile_height)) * fractal_scale_factor + fractal_scale_origin.y;
+                    // Возможно, запрос новый тайлов запрещён при текущем масштабе.
+                    if (settings.request_on_downscale || settings.scale_power <= 0)
+                    {
+                        // Если тайл не существует, создаётся новый и добавляется в таблицу тайлов и в массив отображаемых тайлов.
 
-                    request.grid_x = tile_width;
-                    request.grid_y = tile_height;
+                        // Составление запроса.
+                        Fractal::Request request;
+                        request.rectangle.bottom_left.x = static_cast<mpf_class>(  x      * static_cast<int>(tile_width))  * settings.fractal_scale_factor + settings.fractal_scale_origin.x;
+                        request.rectangle.bottom_left.y = static_cast<mpf_class>( -y      * static_cast<int>(tile_height)) * settings.fractal_scale_factor + settings.fractal_scale_origin.y;
+                        request.rectangle.top_right.x   = static_cast<mpf_class>(( x + 1) * static_cast<int>(tile_width))  * settings.fractal_scale_factor + settings.fractal_scale_origin.x;
+                        request.rectangle.top_right.y   = static_cast<mpf_class>((-y + 1) * static_cast<int>(tile_height)) * settings.fractal_scale_factor + settings.fractal_scale_origin.y;
 
-                    request.precision = precision;
-                    request.iterations_limit = iterations_limit;
-                    request.max_absolute = max_absolute;
-                    request.max_absolute.set_prec(precision);
+                        request.grid_x = tile_width;
+                        request.grid_y = tile_height;
 
-                    std::shared_ptr<Tile> tile = std::make_shared<Tile>(assigned_fractal->request_calc(request));
-                    tiles.insert(std::pair<sf::Vector2i, std::shared_ptr<Tile>>(sf::Vector2i(x, y), tile));
-                    onscreen_tiles.push_back(tile);
-                    tile->setPosition(static_cast<float>(x * static_cast<int>(tile_width)), static_cast<float>(y * static_cast<int>(tile_height)));
+                        request.precision = settings.precision;
+                        request.iterations_limit = settings.iterations_limit;
+                        request.max_absolute = settings.max_absolute;
+                        request.max_absolute.set_prec(settings.precision);
+
+                        // Создание тайла, соответствующего запросу, и добавление его в таблицу и массив.
+                        std::shared_ptr<Tile> tile = std::make_shared<Tile>(assigned_fractal->request_calc(request));
+                        tiles.insert(std::pair<sf::Vector2i, std::shared_ptr<Tile>>(sf::Vector2i(x, y), tile));
+                        onscreen_tiles.push_back(tile);
+                        tile->setPosition(static_cast<float>(x * static_cast<int>(tile_width)), static_cast<float>(y * static_cast<int>(tile_height)));
+                    }
                 }
                 else
                 {
@@ -296,19 +392,19 @@ namespace alfrac
 
     void GUI::rescale_fractal()
     {
-        // TODO: сделвть нормальное возведение в степень.
-        fractal_scale_power += scale_power;
-        scale_power = 0;
-        mpf_class new_factor = mpf_class(pow(scale_base, static_cast<double>(fractal_scale_power)));
-        new_factor.set_prec(precision);
+        // TODO: сделвть нормальное возведение в степень (через средства mpf).
+        settings.fractal_scale_power += settings.scale_power;
+        settings.scale_power = 0;
+        mpf_class new_factor = mpf_class(pow(settings.scale_base, static_cast<double>(settings.fractal_scale_power)));
+        new_factor.set_prec(settings.precision);
 
         mpf_vector_2d new_origin;
-        new_origin.x =  static_cast<mpf_class>(view.getCenter().x) * fractal_scale_factor + fractal_scale_origin.x;
-        new_origin.y = -static_cast<mpf_class>(view.getCenter().y) * fractal_scale_factor + fractal_scale_origin.y;
-        new_origin.set_prec(precision);
+        new_origin.x =  static_cast<mpf_class>(view.getCenter().x) * settings.fractal_scale_factor + settings.fractal_scale_origin.x;
+        new_origin.y = -static_cast<mpf_class>(view.getCenter().y) * settings.fractal_scale_factor + settings.fractal_scale_origin.y;
+        new_origin.set_prec(settings.precision);
 
-        fractal_scale_origin = new_origin;
-        fractal_scale_factor = new_factor;
+        settings.fractal_scale_origin = new_origin;
+        settings.fractal_scale_factor = new_factor;
 
         view.setCenter(0.0f, 0.0f);
         view.setSize(static_cast<sf::Vector2f>(window.getSize()));

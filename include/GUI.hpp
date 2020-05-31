@@ -40,11 +40,39 @@ namespace alfrac
 
     };
 
+
+
     ////////////////       GUI       ///////////////
     // Основной класс для графического интерфейса.
     class GUI
     {
     public:
+        ////////    Settings    ////////
+        // Структура настроек.
+        struct Settings
+        {
+            // Масштабирование графики.
+            float scale_base =  1.61803398875; // Основание в степенном законе масштабирования.
+            int64_t scale_power = 0;           // Степень в степенном законе масштабирования.
+
+            // Масштабирование фрактала.
+            mpf_vector_2d fractal_scale_origin = mpf_vector_2d(0.0, 0.0); // Текущий центр, относительно которого производится масштабирование фрактала.
+            int64_t fractal_scale_power = 0;      // Текущая степень в степенном законе масштабирования.
+            mpf_class fractal_scale_factor = 1.0; // Текущий масштаб фрактала.
+
+            // Точность вычисления фраткала.
+            mp_bitcnt_t precision = 1024;
+            int64_t iterations_limit = 64;
+            mpf_class max_absolute = 4.0;
+
+            // Интерфейс.
+            bool draw_ui = true;
+            bool request_on_downscale = false; // Стоит ли запращшивать новые тайлы, если масштаб меньше первоначального
+                                               // (включение данного параметра ведёт к уменьшению производительности при сильном отдалении камеры).
+            size_t max_tiles_number = 1024;
+        };
+        Settings settings;
+
         GUI(std::shared_ptr<Fractal> init_fractal);
         ~GUI();
 
@@ -53,7 +81,10 @@ namespace alfrac
     protected:
         std::shared_ptr<Fractal> assigned_fractal; // Прикреплённый вычислитель фрактала.
         sf::RenderWindow window; // Главное окно для отрисовки.
-        sf::View view;           // Окно просмотра.
+        sf::View view;           // Основная камера.
+        sf::View ui_view;        // Камера для интерфейса.
+
+        //int64_t min_scale_power = 0; // минимальная степень приближения, при которой возможен запрос новых тайлов (см. Settings::request_on_downscale)
 
         // Тайлы.
         // Временная реализация хэширования вектора с целыми координатамами.
@@ -66,20 +97,6 @@ namespace alfrac
         };
         std::unordered_map<sf::Vector2i, std::shared_ptr<Tile>, _Vector2iHasher> tiles; // Сетка отрисованных тайлов.
         std::vector<std::shared_ptr<Tile>> onscreen_tiles; // Массив отображаемых тайлов.
-
-        // Масштабирование графики.
-        float scale_base = 2.0;  // Основание в степенном законе масштабирования.
-        int64_t scale_power = 0; // Степень в степенном законе масштабирования.
-
-        // Масштабирование фрактала.
-        mpf_vector_2d fractal_scale_origin = mpf_vector_2d(0.0, 0.0); // Текущий центр, относительно которого производится масштабирование фрактала.
-        int64_t fractal_scale_power = 0;      // Текущая степень в степенном законе масштабирования.
-        mpf_class fractal_scale_factor = 1.0; // Текущий масштаб фрактала.
-
-        // Точность вычисления фраткала.
-        mp_bitcnt_t precision = 1024;
-        int64_t iterations_limit = 64;
-        mpf_class max_absolute = 4.0;
 
         void fetch_tiles(const sf::FloatRect& rectangle); // Обновление отображаемых тайлов, попавших в rectangle.
         void rescale_fractal(); // Изменение масштаба отрисовки фрактала.
