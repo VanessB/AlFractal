@@ -7,63 +7,63 @@ namespace algebra
 {
     ////////////////     Algebra     ///////////////
     // Реализация алгебры над полем.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
     class Algebra
     {
     public:
-        std::valarray<Field> components;
+        std::valarray<field> components;
 
-        explicit Algebra<Field, Dimension, ProductTensor>()
-        { components = std::valarray<Field>((Field)( 0 ), Dimension); }
-        explicit Algebra<Field, Dimension, ProductTensor>(std::valarray<Field> initcomponents)
-        { components = initcomponents; }
-        ~Algebra() { }
-
+        explicit Algebra<field, dimension, product_tensor>()
+            : components(field{0}, dimension)
+        { }
+        explicit Algebra<field, dimension, product_tensor>(std::valarray<field> initcomponents)
+            : components(initcomponents)
+        { }
 
         // Нахождение противоположного элемента.
-        Algebra<Field, Dimension, ProductTensor> operator-(const Algebra<Field, Dimension, ProductTensor>& right)
+        Algebra<field, dimension, product_tensor> operator-(const Algebra<field, dimension, product_tensor>& right)
         {
-            Algebra<Field, Dimension, ProductTensor> Result = right;
-            Result.components = -Result.components;
-            return Result;
+            Algebra<field, dimension, product_tensor> result = right;
+            result.components = -result.components;
+            return result;
         }
 
         // Сложение с элементом алгебры.
-        Algebra<Field, Dimension, ProductTensor>& operator+=(const Algebra<Field, Dimension, ProductTensor>& right)
+        Algebra<field, dimension, product_tensor>& operator+=(const Algebra<field, dimension, product_tensor>& right)
         { components += right.components; return *this; }
-        Algebra<Field, Dimension, ProductTensor>& operator-=(const Algebra<Field, Dimension, ProductTensor>& right)
+        Algebra<field, dimension, product_tensor>& operator-=(const Algebra<field, dimension, product_tensor>& right)
         { components -= right.components; return *this; }
 
         // Умножение и деление на элемент поля.
-        Algebra<Field, Dimension, ProductTensor>& operator*=(const Field& Right)
-        { components *= Right; return *this; }
-        Algebra<Field, Dimension, ProductTensor>& operator/=(const Field& Right)
-        { components /= Right; return *this; }
+        Algebra<field, dimension, product_tensor>& operator*=(const field& right)
+        { components *= right; return *this; }
+        Algebra<field, dimension, product_tensor>& operator/=(const field& right)
+        { components /= right; return *this; }
 
         // Умножение на элемент алгебры.
-        Algebra<Field, Dimension, ProductTensor>& operator*=(const Algebra<Field, Dimension, ProductTensor>& right)
+        Algebra<field, dimension, product_tensor>& operator*=(const Algebra<field, dimension, product_tensor>& right)
         {
             // Одномерное представление массива тензора произведения.
-            Field* _ProductTensor = (Field*)(ProductTensor);
+            const field (&_product_tensor)[dimension * dimension * dimension] = reinterpret_cast<const field (&)[dimension * dimension * dimension]>(product_tensor);
 
             // Новые компоненты элемента алгебры.
-            std::valarray<Field> new_components = std::valarray<Field>((Field)( 0 ), Dimension );
+            std::valarray<field> new_components = std::valarray<field>(field{0}, dimension);
 
             // Цикл по базисным элементам.
-            for (size_t index = 0; index < Dimension; ++index)
+            for (size_t index = 0; index < dimension; ++index)
             {
-                Field component = (Field)( 0 ); // Временная переменная для компонента на позиции index.
-                size_t component_offset = index * Dimension * Dimension; // Смещение в одномерном массиве при доступе к компоненте с индексом index.
+                field component{0}; // Временная переменная для компонента на позиции index.
+                size_t component_offset = index * dimension * dimension; // Смещение в одномерном массиве при доступе к компоненте с индексом index.
 
                 // Цикл по строкам среза массива.
-                for (size_t row = 0; row < Dimension; ++row)
+                for (size_t row = 0; row < dimension; ++row)
                 {
-                    Field sum = (Field)( 0 ); // Временная переменная для произведения правого столбца компонент на строку среза.
-                    size_t row_offset = row * Dimension + component_offset;
+                    field sum{0}; // Временная переменная для произведения правого столбца компонент на строку среза.
+                    size_t row_offset = row * dimension + component_offset;
 
                     // Произведение правого столбца компонент на строку среза.
-                    for (size_t Column = 0; Column < Dimension; ++Column)
-                    { sum += _ProductTensor[row_offset + Column] * right.components[Column]; }
+                    for (size_t column = 0; column < dimension; ++column)
+                    { sum += _product_tensor[row_offset + column] * right.components[column]; }
 
                     // Умножение на компоненту левого столбца компонент.
                     component += sum * components[row];
@@ -82,60 +82,59 @@ namespace algebra
     };
 
     // Сумма элементов векторного пространства.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator+(const Algebra<Field, Dimension, ProductTensor>& left, const Algebra<Field, Dimension, ProductTensor>& right)
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator+(const Algebra<field, dimension, product_tensor>& left, const Algebra<field, dimension, product_tensor>& right)
     {
-        Algebra<Field, Dimension, ProductTensor> Result = left;
-        Result += right;
-        return Result;
+        Algebra<field, dimension, product_tensor> result = left;
+        result += right;
+        return result;
     }
 
     // Разность элементов векторного пространства.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator-(const Algebra<Field, Dimension, ProductTensor>& left, const Algebra<Field, Dimension, ProductTensor>& right)
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator-(const Algebra<field, dimension, product_tensor>& left, const Algebra<field, dimension, product_tensor>& right)
     {
-        Algebra<Field, Dimension, ProductTensor> Result = left;
-        Result -= right;
-        return Result;
+        Algebra<field, dimension, product_tensor> result = left;
+        result -= right;
+        return result;
     }
 
     // Произведение элемента векторного пространства и элемента поля.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator*(const Algebra<Field, Dimension, ProductTensor>& left, const Field& right)
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator*(const Algebra<field, dimension, product_tensor>& left, const field& right)
     {
-        Algebra<Field, Dimension, ProductTensor> Result = left;
-        Result *= right;
-        return Result;
+        Algebra<field, dimension, product_tensor> result = left;
+        result *= right;
+        return result;
     }
-
-    // Частное элемента векторного пространства и элемента поля.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator/(const Algebra<Field, Dimension, ProductTensor>& left, const Field& right)
-    {
-        Algebra<Field, Dimension, ProductTensor> Result = left;
-        Result /= right;
-        return Result;
-    }
-    template <class Field, size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator*(const Field& left, const Algebra<Field, Dimension, ProductTensor>& right)
+    template <class field, size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator*(const field& left, const Algebra<field, dimension, product_tensor>& right)
     {
         return right * left;
     }
 
+    // Частное элемента векторного пространства и элемента поля.
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator/(const Algebra<field, dimension, product_tensor>& left, const field& right)
+    {
+        Algebra<field, dimension, product_tensor> result = left;
+        result /= right;
+        return result;
+    }
 
     // Произведение элементов алгебры.
-    template <class Field, const size_t Dimension, const Field ProductTensor[Dimension][Dimension][Dimension]>
-    Algebra<Field, Dimension, ProductTensor> operator*(const Algebra<Field, Dimension, ProductTensor>& left, const Algebra<Field, Dimension, ProductTensor>& right)
+    template <class field, const size_t dimension, const field (&product_tensor)[dimension][dimension][dimension]>
+    Algebra<field, dimension, product_tensor> operator*(const Algebra<field, dimension, product_tensor>& left, const Algebra<field, dimension, product_tensor>& right)
     {
-        Algebra<Field, Dimension, ProductTensor> Result = left;
-        Result *= right;
-        return Result;
+        Algebra<field, dimension, product_tensor> result = left;
+        result *= right;
+        return result;
     }
 
 
     ////////////////     Complex     ///////////////
     // Комплексные числа.
-    const double ComplexPT[2][2][2] =
+    const double complex_pt[2][2][2]
     {
         {
             // Real.
@@ -150,12 +149,12 @@ namespace algebra
             { 1.0, 0.0 }  // i
         }
     };
-    using Complex = Algebra<double, 2, ComplexPT>;
+    using Complex = Algebra<double, 2, complex_pt>;
 
 
     ////////////////  SplitComplex  ////////////////
     // Двойные числа.
-    const double SplitComplexPT[2][2][2] =
+    const double split_complex_pt[2][2][2]
     {
         {
             // xi_1
@@ -170,7 +169,7 @@ namespace algebra
             { 0.0, 1.0 }  // 2
         }
     };
-    using SplitComplex = Algebra<double, 2, SplitComplexPT>;
+    using SplitComplex = Algebra<double, 2, split_complex_pt>;
 }
 
 #endif

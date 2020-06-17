@@ -19,9 +19,9 @@ namespace alfrac
     {
         // TODO: учесть вращение.
         sf::FloatRect view_rect;
-        view_rect.left = view.getCenter().x - 0.5f * view.getSize().x;
-        view_rect.top  = view.getCenter().y - 0.5f * view.getSize().y;
-        view_rect.width = view.getSize().x;
+        view_rect.left   = view.getCenter().x - 0.5f * view.getSize().x;
+        view_rect.top    = view.getCenter().y - 0.5f * view.getSize().y;
+        view_rect.width  = view.getSize().x;
         view_rect.height = view.getSize().y;
         return view_rect;
     }
@@ -66,12 +66,12 @@ namespace alfrac
         // Получение цветов через линейный градиент.
         for (size_t i = 0; i < size; ++i)
         {
-            double relative_iteration = (double)(data.iterations[i] % data.iterations_limit) / (double)data.iterations_limit;
-            //std::cout << data.iterations[i] << std::endl;
-            pixels[i * 4]     = (sf::Uint8)((double)gradient_start.r * (1.0 - relative_iteration) + (double)gradient_end.r * relative_iteration);
-            pixels[i * 4 + 1] = (sf::Uint8)((double)gradient_start.g * (1.0 - relative_iteration) + (double)gradient_end.g * relative_iteration);
-            pixels[i * 4 + 2] = (sf::Uint8)((double)gradient_start.b * (1.0 - relative_iteration) + (double)gradient_end.b * relative_iteration);
-            pixels[i * 4 + 3] = (sf::Uint8)((double)gradient_start.a * (1.0 - relative_iteration) + (double)gradient_end.a * relative_iteration);
+            double relative_iteration = static_cast<double>(data.iterations[i] % data.iterations_limit) / static_cast<double>(data.iterations_limit);
+            //std::cout << data.terations[i] << std::endl;
+            pixels[i * 4]     = static_cast<sf::Uint8>(static_cast<double>(gradient_start.r) * (1.0 - relative_iteration) + static_cast<double>(gradient_end.r * relative_iteration));
+            pixels[i * 4 + 1] = static_cast<sf::Uint8>(static_cast<double>(gradient_start.g) * (1.0 - relative_iteration) + static_cast<double>(gradient_end.g * relative_iteration));
+            pixels[i * 4 + 2] = static_cast<sf::Uint8>(static_cast<double>(gradient_start.b) * (1.0 - relative_iteration) + static_cast<double>(gradient_end.b * relative_iteration));
+            pixels[i * 4 + 3] = static_cast<sf::Uint8>(static_cast<double>(gradient_start.a) * (1.0 - relative_iteration) + static_cast<double>(gradient_end.a * relative_iteration));
         }
         pixels[0] = 255;
         pixels[1] = 255;
@@ -90,7 +90,6 @@ namespace alfrac
     }
 
     // PROTECTED:
-
 
     // PRIVATE:
 
@@ -149,8 +148,11 @@ namespace alfrac
         scale_text.setFont(font);
         scale_text.setCharacterSize(16);
         scale_text.setFillColor(sf::Color::White);
-        scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
-                             "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
+        {
+            int64_t camera_zoom  = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)));
+            int64_t fractal_zoom = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)));
+            scale_text.setString("x"  + std::to_string(camera_zoom) + "(x" + std::to_string(fractal_zoom) + ")");
+        }
 
         // Текст для числа итераций.
         sf::Text iterations_text;
@@ -236,8 +238,10 @@ namespace alfrac
 
                         fetch_tiles(getViewBounds(view));
 
-                        scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
-                                             "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
+                        int64_t camera_zoom  = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)));
+                        int64_t fractal_zoom = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)));
+                        scale_text.setString("x"  + std::to_string(camera_zoom) + "(x" + std::to_string(fractal_zoom) + ")");
+
                         break;
                     }
                     case sf::Event::KeyPressed:
@@ -247,8 +251,11 @@ namespace alfrac
                             case sf::Keyboard::R:
                             {
                                 rescale_fractal();
-                                scale_text.setString("x"  + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)))) +
-                                                     "(x" + std::to_string(static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)))) + ")");
+
+                                int64_t camera_zoom  = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.scale_power - settings.fractal_scale_power)));
+                                int64_t fractal_zoom = static_cast<int64_t>(pow(settings.scale_base, static_cast<double>(-settings.fractal_scale_power)));
+                                scale_text.setString("x"  + std::to_string(camera_zoom) + "(x" + std::to_string(fractal_zoom) + ")");
+
                                 break;
                             }
                             case sf::Keyboard::U:
@@ -395,7 +402,7 @@ namespace alfrac
         // TODO: сделвть нормальное возведение в степень (через средства mpf).
         settings.fractal_scale_power += settings.scale_power;
         settings.scale_power = 0;
-        mpf_class new_factor = mpf_class(pow(settings.scale_base, static_cast<double>(settings.fractal_scale_power)));
+        mpf_class new_factor(pow(settings.scale_base, static_cast<double>(settings.fractal_scale_power)));
         new_factor.set_prec(settings.precision);
 
         mpf_vector_2d new_origin;

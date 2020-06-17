@@ -7,18 +7,14 @@
 //#define DEBUG_OUTPUT_LOOP
 //#define DEBUG_OUTPUT_CALCULATE
 
-using namespace std::chrono_literals;
-
 namespace alfrac
 {
     ////////////////     STRUCTS     ///////////////
     // mpf_vector_2d
     mpf_vector_2d::mpf_vector_2d() { }
     mpf_vector_2d::mpf_vector_2d(mpf_class init_x, mpf_class init_y)
-    {
-        x = init_x;
-        y = init_y;
-    }
+        : x{init_x}, y{init_y}
+    { }
     // Получение наименьшего количества бит точности среди координат.
     mp_bitcnt_t mpf_vector_2d::get_min_prec()
     {
@@ -44,9 +40,12 @@ namespace alfrac
     // Прямоугольник с координатами углов типа mpf_class.
     // mpf_rectangle
     mpf_rectangle::mpf_rectangle() { }
-    mpf_rectangle::mpf_rectangle(mpf_vector_2d init_bl, mpf_vector_2d init_tr) : bottom_left(init_bl), top_right(init_tr) { }
+    mpf_rectangle::mpf_rectangle(mpf_vector_2d init_bl, mpf_vector_2d init_tr)
+        : bottom_left{init_bl}, top_right{init_tr}
+    { }
     mpf_rectangle::mpf_rectangle(mpf_class init_bl_x, mpf_class init_bl_y, mpf_class init_tr_x, mpf_class init_tr_y)
-        : bottom_left(init_bl_x, init_bl_y), top_right(init_tr_x, init_tr_y) { }
+        : bottom_left(init_bl_x, init_bl_y), top_right(init_tr_x, init_tr_y)
+    { }
     mp_bitcnt_t mpf_rectangle::get_min_prec()
     {
         return std::min(bottom_left.get_min_prec(), top_right.get_min_prec());
@@ -73,11 +72,14 @@ namespace alfrac
     ////////////////     Fractal     ///////////////
     // Класс для проведения рассчётов, связанных с вычислением структуры фрактала.
     // PUBLIC:
-    Fractal::Data::Data() { }
-    Fractal::Data::Data(const Fractal::Request& request) :
-        grid_x(request.grid_x), grid_y(request.grid_y), iterations(request.grid_x * request.grid_y, 0), iterations_limit(request.iterations_limit) { }
 
-    Fractal::Fractal() : in_loop(true) { }
+    ////////      Data      ////////
+    Fractal::Data::Data() { }
+    Fractal::Data::Data(const Fractal::Request& request)
+        : grid_x{request.grid_x}, grid_y{request.grid_y}, iterations(request.grid_x * request.grid_y, 0), iterations_limit{request.iterations_limit}
+    { }
+
+    Fractal::Fractal() { }
     Fractal::~Fractal() { }
 
     std::future<Fractal::Data> Fractal::request_calc(const Fractal::Request& request)
@@ -154,7 +156,7 @@ namespace alfrac
             // Простой, когда очередь пуста.
             else
             {
-                // Если очередь пустая, а обход есть, производится переход в режим ожидания.
+                // Если очередь пустая, а цикл продолжается, производится переход в режим ожидания.
                 std::unique_lock<std::mutex> wait_lock(mutex_condition_requests);
                 condition_requests.wait(wait_lock);
             }
@@ -182,43 +184,43 @@ namespace alfrac
         mpf_rectangle _rectangle = request.rectangle;
         _rectangle.set_prec(request.precision);
 
-        alg_mpf Constant({ mpf_class("-2.6", request.precision), mpf_class("-2.9", request.precision) });
-        alg_mpf Var({ mpf_class(0.0, request.precision), mpf_class(0.0, request.precision) });
+        alg_mpf constant({ mpf_class("-2.6", request.precision), mpf_class("-2.9", request.precision) });
+        alg_mpf var({ mpf_class(0.0, request.precision), mpf_class(0.0, request.precision) });
 
-        mpf_class SqrMaxAbsolute = request.max_absolute * request.max_absolute;
+        mpf_class sqr_max_absolute = request.max_absolute * request.max_absolute;
 
         for (size_t x = 0; x < request.grid_x; ++x)
         {
             for (size_t y = 0; y < request.grid_y; ++y)
             {
-                Var.components[0] = mpf_class(0.0, request.precision);
-                Var.components[1] = mpf_class(0.0, request.precision);
-                Constant.components[0] = request.rectangle.bottom_left.x + (request.rectangle.top_right.x - request.rectangle.bottom_left.x)
-                * mpf_class((double)x / (double)request.grid_x, request.precision);
-                Constant.components[1] = request.rectangle.bottom_left.y + (request.rectangle.top_right.y - request.rectangle.bottom_left.y)
-                * mpf_class((double)y / (double)request.grid_y, request.precision);
+                var.components[0] = mpf_class(0.0, request.precision);
+                var.components[1] = mpf_class(0.0, request.precision);
+                constant.components[0] = request.rectangle.bottom_left.x + (request.rectangle.top_right.x - request.rectangle.bottom_left.x)
+                * mpf_class(static_cast<double>(x) / static_cast<double>(request.grid_x), request.precision);
+                constant.components[1] = request.rectangle.bottom_left.y + (request.rectangle.top_right.y - request.rectangle.bottom_left.y)
+                * mpf_class(static_cast<double>(y) / static_cast<double>(request.grid_y), request.precision);
 
-                //std::cout << Var.components[0] << " : " << Var.components[1] << std::endl;
+                //std::cout << var.components[0] << " : " << var.components[1] << std::endl;
 
-                int64_t Step = 0;
-                for (; Step < request.iterations_limit; ++Step)
+                int64_t step = 0;
+                for (; step < request.iterations_limit; ++step)
                 {
-                    Var = Var * Var + Constant;
+                    var = var * var + constant;
 
-                    mpf_class SqrAbsolute = Var.components[0] * Var.components[0] + Var.components[1] * Var.components[1];
-                    //mpf_class SqrAbsolute = Var.components[0] * Var.components[1];
-                    //std::cout << SqrMaxAbsolute.get_prec() << std::endl;
+                    mpf_class sqr_absolute = var.components[0] * var.components[0] + var.components[1] * var.components[1];
+                    //mpf_class sqr_absolute = var.components[0] * var.components[1];
+                    //std::cout << sqr_max_absolute.get_prec() << std::endl;
 
                     #ifdef DEBUG_STEPS_OUTPUT
-                    std::cout << Step << ": " << X.components[0] << " " << X.components[1] << "   " << SqrAbsolute << '\n';
+                    std::cout << step << ": " << X.components[0] << " " << X.components[1] << "   " << sqr_absolute << '\n';
                     #endif
 
-                    if (cmp(SqrAbsolute, SqrMaxAbsolute) > 0) { break; }
+                    if (cmp(sqr_absolute, sqr_max_absolute) > 0) { break; }
                 }
-                result.iterations[x * request.grid_x + y] = Step;
-                //mpf_class SqrAbsolute = Var.components[0] * Var.components[0] - Var.components[1] * Var.components[1];
-                //mpf_class SqrAbsolute = Var.components[0] * Var.components[1];
-                //if (SqrAbsolute > SqrMaxAbsolute) { result.iterations[x * request.grid_x + y] = 0; }
+                result.iterations[x * request.grid_x + y] = step;
+                //mpf_class sqr_absolute = var.components[0] * var.components[0] - var.components[1] * var.components[1];
+                //mpf_class sqr_absolute = var.components[0] * var.components[1];
+                //if (sqr_absolute > sqr_max_absolute) { result.iterations[x * request.grid_x + y] = 0; }
                 //else { result.iterations[x * request.grid_x + y] = request.iterations_limit; }
             }
         }

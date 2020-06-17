@@ -13,7 +13,7 @@
 namespace alfrac
 {
     ////////////////      CONST      ///////////////
-    const mp_bitcnt_t PrecisionBits = 128;
+    const mp_bitcnt_t precision_bits = 128;
 
 
 
@@ -56,24 +56,24 @@ namespace alfrac
 
     ////////////////     Algebra     ///////////////
     // Таблица произведений для алгебры.
-    const mpf_class ProductTable_mpf[2][2][2] =
+    const mpf_class product_tensor_mpf[2][2][2]
     {
         {
             // x_1
             // 1                            2
-            { mpf_class(1, PrecisionBits), mpf_class(0,  PrecisionBits) }, // 1
-            { mpf_class(0, PrecisionBits), mpf_class(-1, PrecisionBits) }  // 2
+            { mpf_class(1, precision_bits), mpf_class(0,  precision_bits) }, // 1
+            { mpf_class(0, precision_bits), mpf_class(-1, precision_bits) }  // 2
         },
         {
             // x_2
             // 1                            2
-            { mpf_class(0, PrecisionBits), mpf_class(1, PrecisionBits) }, // 1
-            { mpf_class(1, PrecisionBits), mpf_class(0, PrecisionBits) }  // 2
+            { mpf_class(0, precision_bits), mpf_class(1, precision_bits) }, // 1
+            { mpf_class(1, precision_bits), mpf_class(0, precision_bits) }  // 2
         }
     };
 
     // Тип элемента алгебры.
-    using alg_mpf = algebra::Algebra<mpf_class, 2, ProductTable_mpf>;
+    using alg_mpf = algebra::Algebra<mpf_class, 2, product_tensor_mpf>;
 
 
 
@@ -130,7 +130,7 @@ namespace alfrac
         std::shared_mutex mutex_requests_queue;   // shared_mutex для контроля доступа к requests_queue.
 
         // Механизмы синфронизации.
-        std::atomic<bool> in_loop;                  // Переменная для контроля циклов рассчётов.
+        std::atomic<bool> in_loop = true;           // Переменная для контроля циклов расчётов.
         std::condition_variable condition_requests; // Условная переменная для реализации функции ожидания.
         std::mutex mutex_condition_requests;        // mutex для реализации функции ожидания.
 
